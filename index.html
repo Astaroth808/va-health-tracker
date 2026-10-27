@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VA Health Tracker — Migraine • Tinnitus • Sciatica</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface2: #243044;
+      --border: #2d3a4f;
+      --text: #e7ecf3;
+      --text-muted: #8b9bb4;
+      --accent: #3b82f6;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --orange: #f97316;
+      --red: #ef4444;
+      --cell-empty: #1e2a3a;
+      --radius: 10px;
+      --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    }
+    [data-theme="light"] {
+      --bg: #f1f5f9; --surface: #ffffff; --surface2: #e2e8f0;
+      --border: #cbd5e1; --text: #0f172a; --text-muted: #475569; --cell-empty: #f8fafc;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.45; }
+    .app { max-width: 1400px; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
+
+    header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    header h1 { font-size: 1.45rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
+    .header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .tabs { display: flex; gap: 0.35rem; margin-bottom: 1.2rem; background: var(--surface); padding: 0.4rem; border-radius: var(--radius); border: 1px solid var(--border); flex-wrap: wrap; }
+    .tab-btn { flex: 1; min-width: 130px; padding: 0.7rem 1rem; border: none; border-radius: 8px; background: transparent; color: var(--text-muted); font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+    .tab-btn:hover { background: var(--surface2); color: var(--text); }
+    .tab-btn.active { background: var(--accent); color: #fff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .va-note { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--green); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1.2rem; font-size: 0.88rem; color: var(--text-muted); }
+    .va-note strong { color: var(--text); }
+
+    .controls { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: center; margin-bottom: 1.2rem; background: var(--surface); padding: 0.8rem 1rem; border-radius: var(--radius); border: 1px solid var(--border); }
+    .year-label { font-weight: 600; font-size: 0.9rem; color: var(--text-muted); }
+    select.year-select { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.7rem; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    .btn { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 0.45rem 0.9rem; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+    .btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-danger:hover { background: var(--red); border-color: var(--red); color: #fff; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 1rem 1.4rem; margin-bottom: 1.2rem; padding: 0.8rem 1.1rem; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); font-size: 0.78rem; }
+    .legend-group { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; }
+    .legend-group strong { color: var(--text-muted); }
+    .code { font-family: ui-monospace, monospace; font-weight: 700; color: var(--accent); background: var(--surface2); padding: 0.08rem 0.3rem; border-radius: 4px; font-size: 0.72rem; }
+
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.7rem; margin-bottom: 1.4rem; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.8rem; text-align: center; }
+    .stat-card .value { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+    .stat-card .label { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.15rem; text-transform: uppercase; }
+
+    .calendar-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); }
+    table.year-grid { width: 100%; border-collapse: collapse; min-width: 1100px; table-layout: fixed; }
+    .year-grid th, .year-grid td { border: 1px solid var(--border); text-align: center; vertical-align: middle; padding: 0; }
+    .year-grid thead th { background: var(--surface2); font-size: 0.78rem; font-weight: 600; padding: 0.5rem 0.2rem; position: sticky; top: 0; z-index: 2; }
+    .year-grid thead th:first-child { width: 42px; position: sticky; left: 0; z-index: 3; background: var(--surface2); }
+    .year-grid tbody th { background: var(--surface2); font-size: 0.8rem; font-weight: 600; width: 42px; position: sticky; left: 0; z-index: 1; padding: 0.2rem; }
+    .year-grid td.day-cell { height: 46px; cursor: pointer; background: var(--cell-empty); position: relative; }
+    .year-grid td.day-cell:hover:not(.invalid) { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
+    .year-grid td.day-cell.invalid { background: repeating-linear-gradient(-45deg, var(--surface), var(--surface) 4px, var(--surface2) 4px, var(--surface2) 8px); cursor: default; opacity: 0.5; }
+    .year-grid td.day-cell.has-entry { font-size: 0.68rem; font-weight: 600; line-height: 1.15; padding: 2px 1px; }
+    .year-grid td.day-cell.intensity-1, .year-grid td.day-cell.intensity-2, .year-grid td.day-cell.intensity-3 { background: #34d39955; }
+    .year-grid td.day-cell.intensity-4, .year-grid td.day-cell.intensity-5, .year-grid td.day-cell.intensity-6 { background: #fbbf2455; }
+    .year-grid td.day-cell.intensity-7, .year-grid td.day-cell.intensity-8 { background: #f9731655; }
+    .year-grid td.day-cell.intensity-9, .year-grid td.day-cell.intensity-10 { background: #ef444455; }
+    .cell-intensity { font-size: 0.95rem; font-weight: 800; display: block; }
+    .cell-codes { font-size: 0.58rem; opacity: 0.9; word-break: break-all; }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 100; opacity: 0; visibility: hidden; transition: all 0.2s; padding: 1rem; }
+    .modal-overlay.open { opacity: 1; visibility: visible; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 5; }
+    .modal-header h2 { font-size: 1.1rem; font-weight: 700; }
+    .modal-close { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; }
+    .modal-body { padding: 1.2rem 1.25rem; display: flex; flex-direction: column; gap: 1.05rem; }
+    .form-group label.section-label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .intensity-slider-wrap { display: flex; align-items: center; gap: 0.75rem; }
+    .intensity-slider-wrap input[type="range"] { flex: 1; accent-color: var(--accent); }
+    .intensity-value { font-size: 1.5rem; font-weight: 800; min-width: 2.2rem; text-align: center; }
+    .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
+    .check-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+    .check-item { display: flex; align-items: center; gap: 0.35rem; background: var(--surface2); padding: 0.4rem 0.55rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; border: 1px solid transparent; }
+    .check-item:hover { border-color: var(--accent); }
+    .check-item input { accent-color: var(--accent); width: 15px; height: 15px; }
+    .check-item .code { margin-left: auto; }
+    textarea, input[type="text"] { width: 100%; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.65rem; font-family: inherit; font-size: 0.88rem; }
+    textarea { min-height: 55px; resize: vertical; }
+    .modal-footer { display: flex; gap: 0.5rem; padding: 1rem 1.25rem; border-top: 1px solid var(--border); justify-content: flex-end; position: sticky; bottom: 0; background: var(--surface); }
+
+    .footer-note { margin-top: 1.5rem; text-align: center; font-size: 0.78rem; color: var(--text-muted); }
+
+    @media print {
+      .tabs, .controls, .header-actions, .modal-overlay, .btn, .footer-note, .va-note { display: none !important; }
+      .tab-content { display: block !important; }
+      body { background: #fff; color: #000; }
+      @page { size: landscape; margin: 0.5cm; }
+    }
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.2rem; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .check-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>🩺 VA Health Tracker</h1>
+      <div class="header-actions">
+        <button class="btn" id="btn-theme">🌓 Theme</button>
+        <button class="btn" id="btn-print">🖨️ Print</button>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="migraine">🧠 Migraine (DC 8100)</button>
+      <button class="tab-btn" data-tab="tinnitus">👂 Tinnitus (DC 6260)</button>
+      <button class="tab-btn" data-tab="sciatica">🦵 Sciatica (DC 8520)</button>
+    </div>
+
+    <!-- ==================== MIGRAINE ==================== -->
+    <div id="tab-migraine" class="tab-content active">
+      <div class="va-note">
+        <strong>VA Migraine Tip (DC 8100):</strong> The key word is <strong>“prostrating”</strong>. Document frequency, duration, and how attacks force you to stop all activity. This tracker also captures <strong>cervicogenic headaches</strong> and common root causes (cervical spine, TMJ, trauma, PTSD, sleep issues) that can support secondary service connection.
+      </div>
+      <div class="controls">
+        <label class="year-label">Year</label>
+        <select class="year-select" id="year-migraine"></select>
+        <button class="btn btn-primary" onclick="exportJSON('migraine')">⬇️ JSON</button>
+        <button class="btn" onclick="exportCSV('migraine')">⬇️ CSV</button>
+        <button class="btn" onclick="document.getElementById('import-migraine').click()">⬆️ Import</button>
+        <input type="file" id="import-migraine" accept=".json" hidden onchange="importJSON(event,'migraine')" />
+        <button class="btn btn-danger" onclick="clearYear('migraine')">🗑️ Clear Year</button>
+      </div>
+      <div class="legend">
+        <div class="legend-group"><strong>Core:</strong>
+          <span class="code" title="Attack so bad you must stop everything and lie down">PR</span> Prostrating &nbsp;
+          <span class="code" title="Visual or sensory warning before the headache">AU</span> Aura &nbsp;
+          <span class="code" title="Feeling sick to your stomach">NA</span> Nausea &nbsp;
+          <span class="code" title="Throwing up">VO</span> Vomiting &nbsp;
+          <span class="code" title="Light hurts your eyes or makes it worse">PH</span> Light Sens. &nbsp;
+          <span class="code" title="Sounds hurt or make it worse">PN</span> Sound Sens.
+        </div>
+        <div class="legend-group"><strong>Type / Root:</strong>
+          <span class="code" title="Headache that starts from the neck">CG</span> Cervicogenic &nbsp;
+          <span class="code" title="Tight band-like pressure headache">TN</span> Tension &nbsp;
+          <span class="code" title="Headache that began after a head or neck injury">PT</span> Post-Traumatic &nbsp;
+          <span class="code" title="Migraine with dizziness or spinning">VM</span> Vestibular &nbsp;
+          <span class="code" title="Problems in the neck bones or discs">CS</span> Cervical Spine &nbsp;
+          <span class="code" title="Jaw joint problems that can trigger headaches">TM</span> TMJ
+        </div>
+        <div class="legend-group"><strong>Impact:</strong>
+          <span class="code" title="Could not work or had to leave work early">WK</span> Missed Work &nbsp;
+          <span class="code" title="Pain or symptoms kept you from sleeping well">SL</span> Sleep &nbsp;
+          <span class="code" title="Hard to do normal daily tasks">DA</span> Daily Activities
+        </div>
+      </div>
+      <div class="stats" id="stats-migraine"></div>
+      <div class="calendar-wrap">
+        <table class="year-grid"><thead><tr><th>Day</th><th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th><th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th></tr></thead>
+        <tbody id="body-migraine"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ==================== TINNITUS ==================== -->
+    <div id="tab-tinnitus" class="tab-content">
+      <div class="va-note">
+        <strong>VA Tinnitus Tip (DC 6260):</strong> Tinnitus itself is usually capped at <strong>10%</strong>. Detailed logs are most valuable for supporting <strong>secondary conditions</strong> (insomnia, anxiety, concentration problems) or <strong>Meniere’s disease</strong> (vertigo + hearing loss + tinnitus can be rated much higher).
+      </div>
+      <div class="controls">
+        <label class="year-label">Year</label>
+        <select class="year-select" id="year-tinnitus"></select>
+        <button class="btn btn-primary" onclick="exportJSON('tinnitus')">⬇️ JSON</button>
+        <button class="btn" onclick="exportCSV('tinnitus')">⬇️ CSV</button>
+        <button class="btn" onclick="document.getElementById('import-tinnitus').click()">⬆️ Import</button>
+        <input type="file" id="import-tinnitus" accept=".json" hidden onchange="importJSON(event,'tinnitus')" />
+        <button class="btn btn-danger" onclick="clearYear('tinnitus')">🗑️ Clear Year</button>
+      </div>
+      <div class="legend">
+        <div class="legend-group"><strong>Sound:</strong>
+          <span class="code" title="Buzzing or hissing sound in the ears">BH</span> Buzz &nbsp;
+          <span class="code" title="High-pitched ringing or squealing">RH</span> Ring &nbsp;
+          <span class="code" title="Humming or whistling sound">HW</span> Hum &nbsp;
+          <span class="code" title="Whooshing or rushing sound">WR</span> Whoosh
+        </div>
+        <div class="legend-group"><strong>Location:</strong>
+          <span class="code" title="Only in the left ear">LE</span> Left &nbsp;
+          <span class="code" title="Only in the right ear">RE</span> Right &nbsp;
+          <span class="code" title="In both ears">BE</span> Both &nbsp;
+          <span class="code" title="Sounds like it is inside your head">C</span> Center
+        </div>
+        <div class="legend-group"><strong>Associated:</strong>
+          <span class="code" title="Feeling like the room is spinning">VE</span> Vertigo &nbsp;
+          <span class="code" title="Harder to hear than usual">HL</span> Hearing Loss &nbsp;
+          <span class="code" title="Feeling of pressure or fullness in the ear">EF</span> Ear Fullness &nbsp;
+          <span class="code" title="Trouble with balance or unsteady walking">BA</span> Balance
+        </div>
+      </div>
+      <div class="stats" id="stats-tinnitus"></div>
+      <div class="calendar-wrap">
+        <table class="year-grid"><thead><tr><th>Day</th><th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th><th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th></tr></thead>
+        <tbody id="body-tinnitus"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ==================== SCIATICA ==================== -->
+    <div id="tab-sciatica" class="tab-content">
+      <div class="va-note">
+        <strong>VA Sciatica Tip (DC 8520):</strong> Raters look for sensory symptoms (numbness, tingling, burning, shooting pain), motor symptoms (weakness, foot drop, limp), laterality, and functional limits (walking, standing, sleep, work). Consistent documentation of these factors strengthens your claim.
+      </div>
+      <div class="controls">
+        <label class="year-label">Year</label>
+        <select class="year-select" id="year-sciatica"></select>
+        <button class="btn btn-primary" onclick="exportJSON('sciatica')">⬇️ JSON</button>
+        <button class="btn" onclick="exportCSV('sciatica')">⬇️ CSV</button>
+        <button class="btn" onclick="document.getElementById('import-sciatica').click()">⬆️ Import</button>
+        <input type="file" id="import-sciatica" accept=".json" hidden onchange="importJSON(event,'sciatica')" />
+        <button class="btn btn-danger" onclick="clearYear('sciatica')">🗑️ Clear Year</button>
+      </div>
+      <div class="legend">
+        <div class="legend-group"><strong>Sensory:</strong>
+          <span class="code" title="Sharp pain that shoots down the leg">SP</span> Shooting &nbsp;
+          <span class="code" title="Burning feeling in the leg or foot">BU</span> Burning &nbsp;
+          <span class="code" title="Numb or “asleep” feeling">NU</span> Numb &nbsp;
+          <span class="code" title="Pins-and-needles tingling">TI</span> Tingling &nbsp;
+          <span class="code" title="Sudden electric-shock type pain">ES</span> Electric
+        </div>
+        <div class="legend-group"><strong>Motor:</strong>
+          <span class="code" title="Leg or foot feels weak">WK</span> Weakness &nbsp;
+          <span class="code" title="Foot drops or drags when walking">FD</span> Foot Drop &nbsp;
+          <span class="code" title="Limping or changed walking pattern">LM</span> Limp
+        </div>
+        <div class="legend-group"><strong>Side:</strong>
+          <span class="code" title="Left leg / side only">L</span> Left &nbsp;
+          <span class="code" title="Right leg / side only">R</span> Right &nbsp;
+          <span class="code" title="Both legs / sides">B</span> Bilateral
+        </div>
+        <div class="legend-group"><strong>Impact:</strong>
+          <span class="code" title="Pain or symptoms kept you from sleeping well">SL</span> Sleep &nbsp;
+          <span class="code" title="Hard to walk or stand for long">WA</span> Walk &nbsp;
+          <span class="code" title="Hard to do normal daily tasks">DA</span> Daily &nbsp;
+          <span class="code" title="Affects your ability to work">WO</span> Work
+        </div>
+      </div>
+      <div class="stats" id="stats-sciatica"></div>
+      <div class="calendar-wrap">
+        <table class="year-grid"><thead><tr><th>Day</th><th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th><th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th></tr></thead>
+        <tbody id="body-sciatica"></tbody></table>
+      </div>
+    </div>
+
+    <p class="footer-note">
+      Data is stored only in your browser. Export regularly. This log is supporting evidence — always combine with medical records and DBQs when filing a VA claim.
+    </p>
+  </div>
+
+  <!-- Shared Modal -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Log Entry</h2>
+        <button class="modal-close" id="modal-close">×</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" id="btn-delete">Delete</button>
+        <button class="btn" id="btn-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const TRACKERS = {
+      migraine: {
+        key: 'vaMigraine_v3',
+        year: new Date().getFullYear(),
+        fields: {
+          symptoms: { PR:'Prostrating Attack', AU:'Aura', NA:'Nausea', VO:'Vomiting', PH:'Photophobia (Light)', PN:'Phonophobia (Sound)' },
+          types: { CG:'Cervicogenic (Neck Origin)', TN:'Tension-Type', PT:'Post-Traumatic', VM:'Vestibular Migraine', CL:'Cluster Headache' },
+          roots: { CS:'Cervical Spine / Degeneration', TM:'TMJ Disorder', WH:'Whiplash / Trauma', SI:'Sleep Issues / Apnea', PS:'PTSD / High Stress', HO:'Hormonal / Menstrual', SN:'Sinus / Allergies' },
+          impacts: { WK:'Missed Work / Unable to Work', SL:'Sleep Interference', DA:'Daily Activities Limited' }
+        }
+      },
+      tinnitus: {
+        key: 'vaTinnitus_v2',
+        year: new Date().getFullYear(),
+        fields: {
+          sounds: { BH:'Buzzing/Hissing', RH:'Ringing', HW:'Humming', WR:'Whooshing' },
+          locations: { LE:'Left Ear', RE:'Right Ear', BE:'Both Ears', C:'Center of Head' },
+          associated: { VE:'Vertigo / Dizziness', HL:'Hearing Loss', EF:'Ear Fullness', BA:'Balance Issues' },
+          impacts: { SL:'Sleep', CO:'Concentration', AN:'Anxiety / Irritability' }
+        }
+      },
+      sciatica: {
+        key: 'vaSciatica_v2',
+        year: new Date().getFullYear(),
+        fields: {
+          sides: { L:'Left', R:'Right', B:'Bilateral' },
+          sensory: { SP:'Shooting Pain', BU:'Burning', NU:'Numbness', TI:'Tingling', ES:'Electric Shock' },
+          motor: { WK:'Weakness', FD:'Foot Drop', LM:'Limp / Gait Change' },
+          radiation: { BT:'Buttock', TH:'Thigh', CA:'Calf', FT:'Foot', TO:'Toes' },
+          patterns: { CO:'Constant', IN:'Intermittent', FL:'Flare-up' },
+          impacts: { SL:'Sleep', WA:'Walking / Standing', DA:'Daily Activities', WO:'Work' }
+        }
+      }
+    };
+
+    let currentTracker = 'migraine';
+    let editingKey = null;
+    let dataStore = { migraine:{}, tinnitus:{}, sciatica:{} };
+
+    function loadAll() {
+      Object.keys(TRACKERS).forEach(t => {
+        try { dataStore[t] = JSON.parse(localStorage.getItem(TRACKERS[t].key) || '{}'); }
+        catch(e) { dataStore[t] = {}; }
+      });
+    }
+    function saveTracker(t) {
+      try { localStorage.setItem(TRACKERS[t].key, JSON.stringify(dataStore[t])); }
+      catch(e) { alert('Could not save. Please export a backup.'); }
+    }
+    function getYearData(t) {
+      const y = TRACKERS[t].year;
+      if (!dataStore[t][y]) dataStore[t][y] = {};
+      return dataStore[t][y];
+    }
+    function entryKey(m, d) { return m + '-' + d; }
+    function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+
+    function initYearSelects() {
+      ['migraine','tinnitus','sciatica'].forEach(t => {
+        const sel = document.getElementById('year-' + t);
+        sel.innerHTML = '';
+        for (let y = 2100; y >= 2000; y--) {
+          const opt = document.createElement('option');
+          opt.value = y; opt.textContent = y;
+          if (y === TRACKERS[t].year) opt.selected = true;
+          sel.appendChild(opt);
+        }
+        sel.onchange = () => { TRACKERS[t].year = parseInt(sel.value); renderTracker(t); };
+      });
+    }
+
+    function renderTracker(t) {
+      const year = TRACKERS[t].year;
+      const yearData = getYearData(t);
+      const tbody = document.getElementById('body-' + t);
+      tbody.innerHTML = '';
+      for (let day = 1; day <= 31; day++) {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th'); th.textContent = day; tr.appendChild(th);
+        for (let month = 1; month <= 12; month++) {
+          const td = document.createElement('td');
+          td.className = 'day-cell';
+          if (day > daysInMonth(year, month)) {
+            td.classList.add('invalid');
+          } else {
+            const key = entryKey(month, day);
+            const entry = yearData[key];
+            if (entry) {
+              td.classList.add('has-entry');
+              const intensity = entry.intensity || 0;
+              if (intensity > 0) td.classList.add('intensity-' + Math.min(10, intensity));
+              const intEl = document.createElement('span');
+              intEl.className = 'cell-intensity';
+              intEl.textContent = intensity > 0 ? intensity : '·';
+              td.appendChild(intEl);
+              let codes = [];
+              if (t === 'migraine') {
+                if (entry.symptoms) codes = codes.concat(entry.symptoms);
+                if (entry.types) codes = codes.concat(entry.types);
+                if (entry.roots) codes = codes.concat(entry.roots);
+                if (entry.impacts) codes = codes.concat(entry.impacts);
+              } else if (t === 'tinnitus') {
+                if (entry.sounds) codes = codes.concat(entry.sounds);
+                if (entry.locations) codes = codes.concat(entry.locations);
+                if (entry.associated) codes = codes.concat(entry.associated);
+              } else {
+                if (entry.sides) codes = codes.concat(entry.sides);
+                if (entry.sensory) codes = codes.concat(entry.sensory);
+                if (entry.motor) codes = codes.concat(entry.motor);
+              }
+              if (codes.length) {
+                const c = document.createElement('span');
+                c.className = 'cell-codes';
+                c.textContent = codes.slice(0, 7).join('');
+                td.appendChild(c);
+              }
+            }
+            td.onclick = () => openModal(t, month, day);
+          }
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+      renderStats(t);
+    }
+
+    function renderStats(t) {
+      const yearData = getYearData(t);
+      const entries = Object.values(yearData);
+      const days = entries.filter(e => (e.intensity || 0) > 0).length;
+      const avg = days ? (entries.reduce((s,e) => s + (e.intensity||0), 0) / days).toFixed(1) : '—';
+      let html = `
+        <div class="stat-card"><div class="value">${days}</div><div class="label">Days Logged</div></div>
+        <div class="stat-card"><div class="value">${avg}</div><div class="label">Avg Intensity</div></div>
+      `;
+      if (t === 'migraine') {
+        const prostrating = entries.filter(e => e.symptoms && e.symptoms.includes('PR')).length;
+        const cervico = entries.filter(e => e.types && e.types.includes('CG')).length;
+        html += `<div class="stat-card"><div class="value">${prostrating}</div><div class="label">Prostrating Days</div></div>`;
+        html += `<div class="stat-card"><div class="value">${cervico}</div><div class="label">Cervicogenic Days</div></div>`;
+      }
+      if (t === 'sciatica') {
+        const motor = entries.filter(e => e.motor && e.motor.length).length;
+        html += `<div class="stat-card"><div class="value">${motor}</div><div class="label">Motor Symptom Days</div></div>`;
+      }
+      if (t === 'tinnitus') {
+        const vertigo = entries.filter(e => e.associated && e.associated.includes('VE')).length;
+        html += `<div class="stat-card"><div class="value">${vertigo}</div><div class="label">Vertigo Days</div></div>`;
+      }
+      document.getElementById('stats-' + t).innerHTML = html;
+    }
+
+    function renderAll() { ['migraine','tinnitus','sciatica'].forEach(renderTracker); }
+
+    // Short simple tooltips for hover help
+    const TOOLTIPS = {
+      // Migraine core
+      PR: 'Attack so bad you must stop everything and lie down',
+      AU: 'Visual or sensory warning before the headache',
+      NA: 'Feeling sick to your stomach',
+      VO: 'Throwing up',
+      PH: 'Light hurts your eyes or makes it worse',
+      PN: 'Sounds hurt or make it worse',
+      // Migraine types
+      CG: 'Headache that starts from the neck',
+      TN: 'Tight band-like pressure headache',
+      PT: 'Headache that began after a head or neck injury',
+      VM: 'Migraine with dizziness or spinning',
+      CL: 'Severe one-sided pain with eye watering or stuffy nose',
+      // Migraine roots
+      CS: 'Problems in the neck bones or discs',
+      TM: 'Jaw joint problems that can trigger headaches',
+      WH: 'Injury from sudden head movement (like car accident)',
+      SI: 'Poor sleep or sleep apnea making headaches worse',
+      PS: 'Stress or PTSD can trigger or worsen attacks',
+      HO: 'Hormone changes (period, menopause, etc.)',
+      SN: 'Sinus or allergy problems contributing to pain',
+      // Impacts
+      WK: 'Could not work or had to leave work early',
+      SL: 'Pain or symptoms kept you from sleeping well',
+      DA: 'Hard to do normal daily tasks',
+      // Tinnitus
+      BH: 'Buzzing or hissing sound in the ears',
+      RH: 'High-pitched ringing or squealing',
+      HW: 'Humming or whistling sound',
+      WR: 'Whooshing or rushing sound',
+      LE: 'Only in the left ear',
+      RE: 'Only in the right ear',
+      BE: 'In both ears',
+      C: 'Sounds like it is inside your head',
+      VE: 'Feeling like the room is spinning',
+      HL: 'Harder to hear than usual',
+      EF: 'Feeling of pressure or fullness in the ear',
+      BA: 'Trouble with balance or unsteady walking',
+      CO: 'Hard to focus or concentrate',
+      AN: 'More anxious, irritable, or on edge',
+      // Sciatica
+      SP: 'Sharp pain that shoots down the leg',
+      BU: 'Burning feeling in the leg or foot',
+      NU: 'Numb or “asleep” feeling',
+      TI: 'Pins-and-needles tingling',
+      ES: 'Sudden electric-shock type pain',
+      WK: 'Leg or foot feels weak',
+      FD: 'Foot drops or drags when walking',
+      LM: 'Limping or changed walking pattern',
+      L: 'Left leg / side only',
+      R: 'Right leg / side only',
+      B: 'Both legs / sides',
+      BT: 'Pain in the buttock',
+      TH: 'Pain in the thigh',
+      CA: 'Pain in the calf or lower leg',
+      FT: 'Pain in the foot',
+      TO: 'Pain in the toes',
+      CO: 'Pain is there most or all of the time',
+      IN: 'Comes and goes during the day',
+      FL: 'Sudden bad flare of symptoms',
+      WA: 'Hard to walk or stand for long',
+      WO: 'Affects your ability to work'
+    };
+
+    function buildChecks(label, id, map, selected, three) {
+      let html = `<div class="form-group"><label class="section-label">${label}</label><div class="check-grid${three?' three':''}" id="${id}">`;
+      Object.entries(map).forEach(([code, name]) => {
+        const tip = TOOLTIPS[code] || name;
+        html += `<label class="check-item" title="${tip}"><input type="checkbox" value="${code}" ${selected.includes(code)?'checked':''}/><span>${name}</span><span class="code">${code}</span></label>`;
+      });
+      return html + `</div></div>`;
+    }
+
+    function openModal(t, month, day) {
+      currentTracker = t;
+      editingKey = entryKey(month, day);
+      const entry = getYearData(t)[editingKey] || {};
+      const year = TRACKERS[t].year;
+      document.getElementById('modal-title').textContent = `${MONTHS[month-1]} ${day}, ${year} — ${t.charAt(0).toUpperCase()+t.slice(1)}`;
+
+      const intensity = entry.intensity || 0;
+      let body = `
+        <div class="form-group">
+          <label class="section-label">Intensity / Severity (0–10)</label>
+          <div class="intensity-slider-wrap">
+            <input type="range" id="m-intensity" min="0" max="10" value="${intensity}"/>
+            <span class="intensity-value" id="m-intensity-val">${intensity}</span>
+          </div>
+        </div>`;
+
+      if (t === 'migraine') {
+        body += buildChecks('Core Symptoms (check all that apply)', 'm-symptoms', TRACKERS.migraine.fields.symptoms, entry.symptoms||[]);
+        body += buildChecks('Headache Type / Origin', 'm-types', TRACKERS.migraine.fields.types, entry.types||[]);
+        body += buildChecks('Root Causes / Associated Conditions', 'm-roots', TRACKERS.migraine.fields.roots, entry.roots||[]);
+        body += buildChecks('Functional Impact', 'm-impacts', TRACKERS.migraine.fields.impacts, entry.impacts||[]);
+        body += `<div class="form-group"><label class="section-label">Duration of Attack</label><input type="text" id="m-duration" value="${entry.duration||''}" placeholder="e.g. 4 hours, all day, 2 days"/></div>`;
+        body += `<div class="form-group"><label class="section-label">Medications / What Helped</label><input type="text" id="m-meds" value="${entry.meds||''}" placeholder="e.g. sumatriptan, dark room, ice, neck PT"/></div>`;
+      } else if (t === 'tinnitus') {
+        body += buildChecks('Sound Type', 'm-sounds', TRACKERS.tinnitus.fields.sounds, entry.sounds||[]);
+        body += buildChecks('Location', 'm-locations', TRACKERS.tinnitus.fields.locations, entry.locations||[], true);
+        body += buildChecks('Associated Symptoms (important for Meniere’s / secondary claims)', 'm-associated', TRACKERS.tinnitus.fields.associated, entry.associated||[]);
+        body += buildChecks('Functional Impact', 'm-impacts', TRACKERS.tinnitus.fields.impacts, entry.impacts||[], true);
+        body += `<div class="form-group"><label class="section-label">Constant or Intermittent?</label><input type="text" id="m-pattern" value="${entry.pattern||''}" placeholder="e.g. constant, comes and goes"/></div>`;
+      } else {
+        body += buildChecks('Side Affected', 'm-sides', TRACKERS.sciatica.fields.sides, entry.sides||[], true);
+        body += buildChecks('Sensory Symptoms', 'm-sensory', TRACKERS.sciatica.fields.sensory, entry.sensory||[]);
+        body += buildChecks('Motor / Gait', 'm-motor', TRACKERS.sciatica.fields.motor, entry.motor||[], true);
+        body += buildChecks('Radiation Location', 'm-radiation', TRACKERS.sciatica.fields.radiation, entry.radiation||[], true);
+        body += buildChecks('Pattern', 'm-patterns', TRACKERS.sciatica.fields.patterns, entry.patterns||[], true);
+        body += buildChecks('Functional Impacts', 'm-impacts', TRACKERS.sciatica.fields.impacts, entry.impacts||[]);
+        body += `<div class="form-group"><label class="section-label">Duration / Triggers</label><input type="text" id="m-duration" value="${entry.duration||''}" placeholder="e.g. all day, after sitting, walking >10 min"/></div>`;
+      }
+
+      body += `<div class="form-group"><label class="section-label">Notes</label><textarea id="m-notes">${entry.notes||''}</textarea></div>`;
+      document.getElementById('modal-body').innerHTML = body;
+      document.getElementById('m-intensity').oninput = e => document.getElementById('m-intensity-val').textContent = e.target.value;
+      document.getElementById('modal-overlay').classList.add('open');
+    }
+
+    function getChecked(id) {
+      return [...document.querySelectorAll('#'+id+' input:checked')].map(i => i.value);
+    }
+
+    function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); editingKey = null; }
+
+    function saveEntry() {
+      if (!editingKey) return;
+      const t = currentTracker;
+      const yearData = getYearData(t);
+      const intensity = parseInt(document.getElementById('m-intensity').value) || 0;
+      let entry = { intensity, notes: (document.getElementById('m-notes')?.value || '').trim() };
+
+      if (t === 'migraine') {
+        entry.symptoms = getChecked('m-symptoms');
+        entry.types = getChecked('m-types');
+        entry.roots = getChecked('m-roots');
+        entry.impacts = getChecked('m-impacts');
+        entry.duration = document.getElementById('m-duration')?.value.trim() || '';
+        entry.meds = document.getElementById('m-meds')?.value.trim() || '';
+      } else if (t === 'tinnitus') {
+        entry.sounds = getChecked('m-sounds');
+        entry.locations = getChecked('m-locations');
+        entry.associated = getChecked('m-associated');
+        entry.impacts = getChecked('m-impacts');
+        entry.pattern = document.getElementById('m-pattern')?.value.trim() || '';
+      } else {
+        entry.sides = getChecked('m-sides');
+        entry.sensory = getChecked('m-sensory');
+        entry.motor = getChecked('m-motor');
+        entry.radiation = getChecked('m-radiation');
+        entry.patterns = getChecked('m-patterns');
+        entry.impacts = getChecked('m-impacts');
+        entry.duration = document.getElementById('m-duration')?.value.trim() || '';
+      }
+
+      const hasContent = intensity > 0 || entry.notes ||
+        (entry.symptoms||[]).length || (entry.types||[]).length || (entry.roots||[]).length ||
+        (entry.sounds||[]).length || (entry.sides||[]).length ||
+        (entry.sensory||[]).length || (entry.motor||[]).length || (entry.associated||[]).length ||
+        entry.duration || entry.meds || entry.pattern;
+
+      if (!hasContent) delete yearData[editingKey];
+      else yearData[editingKey] = entry;
+
+      saveTracker(t);
+      closeModal();
+      renderTracker(t);
+    }
+
+    function deleteEntry() {
+      if (!editingKey || !confirm('Delete this entry?')) return;
+      delete getYearData(currentTracker)[editingKey];
+      saveTracker(currentTracker);
+      closeModal();
+      renderTracker(currentTracker);
+    }
+
+    function exportJSON(t) {
+      const blob = new Blob([JSON.stringify(dataStore[t], null, 2)], {type:'application/json'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = t + '-va-tracker-' + TRACKERS[t].year + '.json'; a.click();
+    }
+    function exportCSV(t) {
+      const yearData = getYearData(t);
+      let csv = 'Date,Intensity,Details,Notes\n';
+      Object.keys(yearData).sort().forEach(k => {
+        const [m,d] = k.split('-');
+        const e = yearData[k];
+        csv += `"${TRACKERS[t].year}-${m.padStart(2,'0')}-${d.padStart(2,'0')}",${e.intensity||0},"${JSON.stringify(e).replace(/"/g,'""')}","${(e.notes||'').replace(/"/g,'""')}"\n`;
+      });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+      a.download = t + '-va-tracker-' + TRACKERS[t].year + '.csv'; a.click();
+    }
+    function importJSON(e, t) {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const imported = JSON.parse(ev.target.result);
+          Object.keys(imported).forEach(y => {
+            if (!dataStore[t][y]) dataStore[t][y] = {};
+            Object.assign(dataStore[t][y], imported[y]);
+          });
+          saveTracker(t); renderTracker(t); alert('Import successful');
+        } catch(err) { alert('Invalid JSON file'); }
+      };
+      reader.readAsText(file); e.target.value = '';
+    }
+    function clearYear(t) {
+      if (!confirm('Clear ALL data for ' + TRACKERS[t].year + '?')) return;
+      dataStore[t][TRACKERS[t].year] = {};
+      saveTracker(t); renderTracker(t);
+    }
+
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        currentTracker = btn.dataset.tab;
+      };
+    });
+
+    document.getElementById('btn-theme').onclick = () => {
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      if (isLight) { document.documentElement.removeAttribute('data-theme'); localStorage.setItem('vaTheme','dark'); }
+      else { document.documentElement.setAttribute('data-theme','light'); localStorage.setItem('vaTheme','light'); }
+    };
+    document.getElementById('btn-print').onclick = () => window.print();
+    document.getElementById('modal-close').onclick = closeModal;
+    document.getElementById('btn-cancel').onclick = closeModal;
+    document.getElementById('btn-save').onclick = saveEntry;
+    document.getElementById('btn-delete').onclick = deleteEntry;
+    document.getElementById('modal-overlay').onclick = e => { if (e.target === e.currentTarget) closeModal(); };
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    if (localStorage.getItem('vaTheme') === 'light') document.documentElement.setAttribute('data-theme','light');
+    loadAll();
+    initYearSelects();
+    renderAll();
+  </script>
+</body>
+</html>
